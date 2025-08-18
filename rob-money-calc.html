@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>个人养老金计算器</title>
+<style>
+  body{background:#fefefe; font-family: system-ui, -apple-system, sans-serif; color:#222; margin:0; padding:0;}
+  .wrap{max-width:900px; margin:32px auto; padding:0 16px;}
+  h1{font-size:26px;}
+  .card{background:#fff; border:1px solid #ddd; border-radius:10px; padding:18px; margin-bottom:16px; box-shadow:0 1px 2px rgba(0,0,0,.05);}
+  label{font-size:14px; display:block; margin-bottom:4px; color:#555;}
+  input,select{width:100%; padding:8px; border:1px solid #ccc; border-radius:8px; font-size:14px;}
+  .row{margin-bottom:12px;}
+  .btn{padding:10px 14px; background:#0b57d0; color:#fff; border:none; border-radius:8px; cursor:pointer;}
+  .btn:disabled{opacity:.6;}
+  .kpi{display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:12px;}
+  .kpi .item{background:#fafafa; border:1px solid #eee; border-radius:8px; padding:12px;}
+  .kpi .item h3{margin:0 0 4px; font-size:14px; color:#666;}
+  .kpi .item .val{font-size:18px;}
+  .note{font-size:12px; color:#666; margin-top:8px;}
+  .warn{color:#a33; font-weight:600;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <h1>个人养老金计算器</h1>
+  
+<p style="font-size: 0.9em; color: #666;">
+  本工具仅供娱乐<br>
+  缴费频率可选单次或每年。单次用以单独计算某一年的收益，更加独立直观。可以直接得出从哪一年开始交才是正收益<br>
+  个养收益计算方式为：同样的钱，个养的最终金额-用于自由投资的最终金额<br>
+  个养收益率计算方式为：个养收益按照定投复利的方式折算为年利率<br>
+  相当于仅考虑个养与自由投资之间的收益差，而不计算额外投资本身的利率。便于个养等效于长期投资的利率<br>
+</p>
+
+
+
+  <div class="card">
+    <div class="row">
+      <label>缴费年龄（岁）</label>
+      <input type="number" id="age" value="30" min="18" />
+    </div>
+    <div class="row">
+      <label>退休年龄（岁，默认 63）</label>
+      <input type="number" id="retAge" value="63" min="40" />
+    </div>
+    <div class="row">
+      <label>年计税收入（扣除各项减免后计税收入，元）（但不包括基本减除6万，即个税起征点）（请核对年终奖金计税方式）</label>
+      <input type="number" id="income" value="100000" min="0" step="1000" />
+    </div>
+    <div class="row">
+      <label>每年缴入个人养老金（≤12000 元）</label>
+      <input type="number" id="contrib" value="12000" min="0" max="12000" step="100" />
+    </div>
+    <div class="row">
+      <label>缴费频率</label>
+      <select id="mode">
+        <option value="single">仅今年缴一次</option>
+        <option value="annual" selected>每年缴费至退休</option>
+      </select>
+    </div>
+    <div class="row">
+      <label>个人养老金账户投资年化收益率（%）<span class="note">(采用复利计算)</span></label>
+      <input type="number" id="rP" value="2" step="0.1" />
+    </div>
+    <div class="row">
+      <label>自由投资（税后）年化收益率（%）<span class="note">(采用复利计算)</span></label>
+      <input type="number" id="rF" value="2" step="0.1" />
+    </div>
+    <button class="btn" id="calc">计算</button>
+    <div id="warn" class="note"></div>
+  </div>
+
+  <div class="card" id="out" style="display:none;">
+    <div class="kpi">
+      <div class="item"><h3>总节税额</h3><div class="val" id="saveAll">—</div></div>
+      <div class="item"><h3>到期养老金税前</h3><div class="val" id="pensionBefore">—</div></div>
+      <div class="item"><h3>到期养老金税后</h3><div class="val" id="pensionAfter">—</div></div>
+      <div class="item"><h3>到期自由投资</h3><div class="val" id="freeAfter">—</div></div>
+      <div class="item"><h3>总正收益</h3><div class="val" id="totalGain">—</div></div>
+      <div class="item"><h3>年化收益率（复利）</h3><div class="val" id="annRate">—</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const brackets = [
+  {up:36000, rate:0.03, quick:0},
+  {up:144000, rate:0.10, quick:2520},
+  {up:300000, rate:0.20, quick:16920},
+  {up:420000, rate:0.25, quick:31920},
+  {up:660000, rate:0.30, quick:52920},
+  {up:960000, rate:0.35, quick:85920},
+  {up:Infinity, rate:0.45, quick:181920},
+];
+
+// 个税计算（固定起征点6万）
+function annualTax(income){
+  const threshold=60000;
+  const taxable=Math.max(0,income-threshold);
+  const b=brackets.find(b=>taxable<=b.up);
+  return taxable*b.rate-b.quick;
+}
+
+// 复利终值计算
+function fv_simple(C, r, n){
+  return C*(1+r*n);
+}
+
+/**
+ * 计算定投复利终值
+ * @param {number} amount - 每年定投金额
+ * @param {number} yearsInvest - 持续投入年限
+ * @param {number} totalYears - 总持有年限
+ * @param {number} rate - 年化收益率 (小数形式，如 0.03 表示 3%)
+ * @returns {number} 最终终值
+ */
+function calcInvestment(amount, yearsInvest, totalYears, rate) {
+    let total = 0;
+    for (let i = 1; i <= yearsInvest; i++) {
+        // 每年的投入持有 (totalYears - i + 1) 年
+        total += amount * Math.pow(1 + rate, totalYears - i + 1);
+    }
+    return total;
+}
+
+/**
+ * 反推年化收益率（调用 calcInvestment）
+ */
+function calcRate(amount, yearsInvest, totalYears, finalValue, tolerance = 1e-8) {
+    let low = -0.9999, high = 1.0, mid;
+    while (high - low > tolerance) {
+        mid = (low + high) / 2;
+        let fv = calcInvestment(amount, yearsInvest, totalYears, mid);
+        if (fv > finalValue) {
+            high = mid;
+        } else {
+            low = mid;
+        }
+    }
+    return mid;
+}
+
+function fmt(x){return '¥ '+(isNaN(x)?'—':x.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2}));}
+
+document.getElementById('calc').onclick=()=>{
+  const age=+document.getElementById('age').value;
+  const retAge=+document.getElementById('retAge').value;
+  const years=Math.max(0,retAge-age);
+  const income=+document.getElementById('income').value;
+  let contrib=Math.min(12000,Math.max(0,+document.getElementById('contrib').value));
+  const mode=document.getElementById('mode').value;
+  const rP=(+document.getElementById('rP').value)/100;
+  const rF=(+document.getElementById('rF').value)/100;
+
+  // 提示
+  const warn=document.getElementById('warn');
+  warn.textContent= years>25 ? "提示：您离退休还有较长时间，要考虑退休年龄可能会延后。" : "";
+
+  // 节税额
+  const saveOnce=annualTax(income)-annualTax(income-contrib);
+  const save=(mode==='single') ?saveOnce:saveOnce*years;
+
+  // 养老金与自由投资到期值（复利计算）
+  let fvP= (mode==='single') ?calcInvestment(contrib, 1, years, rP):calcInvestment(contrib, years, years, rP);
+  let fvF= (mode==='single') ?calcInvestment(contrib-saveOnce, 1, years, rF):calcInvestment(contrib-saveOnce, years, years, rF);
+
+  const pensionBefore=fvP;
+  const pensionAfter=fvP*0.97;
+  const freeAfter=fvF;
+
+  // 总收益 = 节税 + (养老金 − 自由)
+  const totalGain= pensionAfter - freeAfter;
+
+  // 年化收益率（复利）
+  const totalContrib= (mode==='single')? contrib : contrib*years;
+  const totalAmount=(mode==='single')? contrib+totalGain : contrib*years+totalGain;
+  const annRate= years>0 && totalContrib>0 ? ((mode==='single') ?calcRate(contrib, 1, years, totalAmount):calcRate(contrib, years, years, totalAmount)): 0;
+
+  // 输出
+  document.getElementById('out').style.display='block';
+  document.getElementById('saveAll').textContent=fmt(save);
+  document.getElementById('pensionBefore').textContent=fmt(pensionBefore);
+  document.getElementById('pensionAfter').textContent=fmt(pensionAfter);
+  document.getElementById('freeAfter').textContent=fmt(freeAfter);
+  document.getElementById('totalGain').textContent=fmt(totalGain);
+  document.getElementById('annRate').textContent= (years>0? (annRate*100).toFixed(2)+'%/年':'—');
+};
+</script>
+</body>
+</html>
