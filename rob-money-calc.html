@@ -27,15 +27,13 @@
 <div class="wrap">
   <h1>个人养老金计算器</h1>
   
-<p style="font-size: 0.9em; color: #666;">
-  本工具仅供娱乐<br>
-  缴费频率可选单次或每年。单次用以单独计算某一年的收益，更加独立直观。可以直接得出从哪一年开始交才是正收益<br>
-  个养收益计算方式为：同样的钱，个养的最终金额-用于自由投资的最终金额<br>
-  个养收益率计算方式为：个养收益按照定投复利的方式折算为年利率<br>
-  相当于仅考虑个养与自由投资之间的收益差，而不计算额外投资本身的利率。便于个养等效于长期投资的利率<br>
-</p>
+<a href="https://github.com/LenorEric">
+<img src="https://img.shields.io/badge/Author-Lenor-blueviolet" alt="build passing">
+</a>
 
-
+<a href="https://github.com/LenorEric/Personal-Pension-Calculator">
+<img src="https://img.shields.io/badge/Report-IfWrong-green" alt="build passing">
+</a>
 
   <div class="card">
     <div class="row">
@@ -189,5 +187,14 @@ document.getElementById('calc').onclick=()=>{
   document.getElementById('annRate').textContent= (years>0? (annRate*100).toFixed(2)+'%/年':'—');
 };
 </script>
+
+<p style="font-size: 0.9em; color: #666;">
+  本工具仅供娱乐<br>
+  缴费频率可选单次或每年。单次用以单独计算某一年的收益，更加独立直观。可以直接得出从哪一年开始交才是正收益<br>
+  个养收益计算方式为：同样的钱，个养的最终金额-用于自由投资的最终金额<br>
+  个养收益率计算方式为：个养收益按照定投复利的方式折算为年利率<br>
+  相当于仅考虑个养与自由投资之间的收益差，而不计算额外投资本身的利率。便于个养等效于长期投资的利率<br>
+</p>
+
 </body>
 </html>
