@@ -45,7 +45,7 @@
       <input type="number" id="retAge" value="63" min="40" />
     </div>
     <div class="row">
-      <label>年计税收入（扣除各项减免后计税收入，元）（但不包括基本减除6万，即个税起征点）（请核对年终奖金计税方式）</label>
+      <label>年计税收入（扣除各项减免（基本减免/个税起征点除外）后计税收入，元）（计算方式：（税前月薪-五险一金-专项扣除-杂项扣除）*12）（请核对年终奖金计税方式）</label>
       <input type="number" id="income" value="100000" min="0" step="1000" />
     </div>
     <div class="row">
@@ -198,3 +198,4 @@ document.getElementById('calc').onclick=()=>{
 
 </body>
 </html>
+
